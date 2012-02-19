@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+	<header>
+    <script type="text/javascript" src="../Kinetic/kinetic-v3.7.2.min.js"></script>
+    <script type="text/javascript">
+	
+		/*
+			function(){
+                var context = this.getContext();
+                context.beginPath();
+                context.rect(rectX, rectY, 100, 50);
+                context.lineWidth = 4;
+                context.strokeStyle = "black";
+                context.fillStyle = "#00D2FF";
+                context.fill();
+                context.stroke();
+                context.closePath();
+            }
+		*/
+		var tableLayer = new Kinetic.Layer();
+		var messageLayer = new Kinetic.Layer();
+		//table props eventually defined in table... do static variables exist in javascript?
+		var HEADER_HEIGHT = 50;//18pt font == 24px;
+		var COLUMN_HEIGHT = 18;
+		var PADDING_RIGHT = 15;
+		var PADDING_LEFT = 15;
+        function writeMessage(messageLayer, message)
+		{
+            var context = messageLayer.getContext();
+			messageLayer.clear();
+            context.font = "18pt Calibri";
+            context.fillStyle = "black";
+            context.fillText(message, 10, 25);
+        }
+		
+		function _t_coords(x,y)
+		{
+			return [{'x':x,'y':y}, {'x':x+100, 'y':y-50}];
+		}
+		
+		function connectPoint()
+		{
+				this.drawConnectPoint = 
+				function()
+				{
+					var context = this.getContext();
+					context.beginPath();
+					context.lineWidth = this.lineWidth;
+					context.strokeStyle = "#666";
+					context.fillStyle = "#ddd";
+					context.arc(0, 0, 5, 0, 2 * Math.PI, false);
+					context.closePath();
+					context.fill();
+					context.stroke();
+				};
+			
+			this.shape = new Kinetic.Shape(this.drawConnectPoint);
+			this.shape.lineWidth = 2;
+            this.shape.on("mouseover", 
+				function(){
+					document.body.style.cursor = "pointer";
+					this.lineWidth = 4;
+					anchorsLayer.draw();
+				}
+			);
+            this.shape.on("mouseout", 
+				function(){
+					document.body.style.cursor = "default";
+					this.lineWidth = 2;
+					anchorsLayer.draw();
+				}
+			);	
+		}
+		
+		function column(name, attributes, x, y)
+		{
+			this.x = 0;
+			this.y = 0;
+			this._init = function()
+			{
+				var attr = (attributes ? attributes : []);
+				var context = tableLayer.getContext();
+				var colX=0,colY=0;
+				var padding = PADDING_RIGHT * COLUMN_HEIGHT;
+				colX = PADDING_RIGHT;
+				colY = HEADER_HEIGHT + 2 + colY;
+				this.x = x+colX;
+				this.y = y+colY;
+				this.name = name;
+			}
+			this.draw = function()
+			{
+					context.fillText(name, this.x, this.y);
+			};
+			//left.x+colX, left.y+colY
+			
+		}
+		
+		function DrawTable(label, cols, left, right, color)
+		{
+			var drawFunc = function(){
+				var context = this.getContext();
+				context.beginPath();
+				var bottomX=0;
+				var bottomY=HEADER_HEIGHT;//18pt font == 24px;
+				this._cols = (this._cols ? this._cols : []);
+				if(typeof(this.alpha) == 'undefined') this.alpha = 1;
+				writeMessage(messageLayer, 'Alpha is now: ' + this.alpha);		
+				/*
+					!!!!!!!!!!!!!!!!
+					!!NOTE TO SELF!! - ONCE THESE ARE CALCULATED, STORE THEM SO THEY DON'T HAVE TO BE FIGURED OUT EVERY TIME FOR THE LOVE OF GOD.
+					!!			  !! - INCLUDING KEEPING THE ACTUAL OBJECTS AROUND SO THEY AREN'T RECREATED EVERY FUCKING TIME!
+					!!!!!!!!!!!!!!!!					
+				*/
+				for(var i = 0; i < cols.length; i++)
+				{
+					len_colName=PADDING_RIGHT + cols[i].toString().length + PADDING_LEFT;
+					if(len_colName > bottomX) bottomX = len_colName;
+					bottomY+=COLUMN_HEIGHT;
+				}
+					
+				context.rect(left.x, left.y, right.x+bottomX, right.y+bottomY);
+				context.lineWidth = 1;
+				context.strokeStyle = "black";
+				context.fillStyle = color;
+				context.globalAlpha = this.alpha;
+				context.fill();
+				context.stroke();
+				context.closePath();
+				/*
+					DRAW HEADER.
+				*/
+				context.font = "18pt Calibri";
+				context.fillStyle = "black";
+				context.globalAlpha = this.alpha;
+				context.fillText(label, left.x+15, left.y+25);
+				/*
+					DRAW COLUMNS
+				*/
+				var topY = left.y + 5;
+				if(this._cols && this._cols.length)
+				{
+					for(var i = 0; i < this._cols.length; i++)
+						this._cols[i].draw();
+				}
+				else
+				{
+					for(var i = 0; i < cols.length; i++)
+					{
+						console.log('Creating column: ' + cols[i]);
+						topY = topY + (COLUMN_HEIGHT * (i+1));
+						this._cols.push(new column(cols[i], {/*attributes*/}, left.x, topY));
+						this._cols[i].draw();
+					}
+				}
+			}
+			drawFunc.alpha = 1;
+			return drawFunc;
+		}
+		
+		function Table(name, cols) {
+			this.name = name;
+			this.cols = (cols ? cols : []);
+			this.color = "#B1C6F7";
+			console.log("Making table: " + name + " with columns: " + cols);
+			var tc = _t_coords(100,200);
+			//this.color = "#00D2FF";
+			this.draw = DrawTable(this.name, this.cols, tc[0],tc[1], this.color);
+			this.shape = new Kinetic.Shape(this.draw);
+			this.shape.draggable(true);
+			this.shape.on("mousedown", 
+				function()
+				{
+					console.log('mousedooown...');
+					this.alpha = 0.5;
+					this.moveToTop();
+					tableLayer.draw();
+				}
+			);
+			this.shape.on("mouseup", 
+				function(){
+					console.log('mouseuuuuup...');
+					this.alpha = 1;
+					tableLayer.draw();
+				}
+			);
+			this.shape.on("dragstart", function(){
+				//writeMessage(messageLayer, "dragstart");
+			});
+			this.shape.on("dragend", function(){
+				//writeMessage(messageLayer, "dragend");
+			});
+		}
+		
+		
+ 
+        function init(){
+            var stage = new Kinetic.Stage("container", 1680, 1050);
+			//stage.width, stage.height - the siZe of the canvas.
+            var rectX = 50;
+            var rectY = 50;
+			var tables = [];
+			
+			for(var i = 0; i < 2; i++)
+			{
+				var t = new Table("Table #" + i, ['colA', 'colB', 'colC']);
+				tableLayer.add(t.shape);
+			}
+            stage.add(messageLayer);
+            stage.add(tableLayer);
+        }
+    </script>
+</head>
+<body onload="init()" onmousedown="return false;">
+    <div id="container">
+    </div>
+</body>

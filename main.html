@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+	<header>
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js"></script>
+		<script type="text/javascript" src="JSON/json.js"></script>
+		<script type="text/javascript" src="Kinetic/kinetic-v3.7.2.min.js"></script>
+		<!---
+		<script type="text/javascript" src="jquery.carousel"></script>
+		--->
+		<script type='text/javascript'>
+			var shapesLayer = new Kinetic.Layer();
+			var messageLayer = new Kinetic.Layer();
+			HEIGHT = 500;
+			WIDTH = 400;
+			function writeMessage(messageLayer, message){
+			    var context = messageLayer.getContext();
+			    messageLayer.clear();
+			    context.font = "18pt Calibri";
+			    context.fillStyle = "#FFFFFF";
+			    context.fillText(message, 10, 25);
+			}
+			
+			function Box(x, y, fill) {
+				var context = messageLayer.getContext();
+				context.beginPath();
+				context.rect(x, y, x+50, y+100);
+				context.lineWidth = 1;
+				context.strokeStyle = "#00D2FF";
+				context.fillStyle = fill;
+				context.fill();
+				context.stroke();
+				context.closePath();
+			}
+			
+			function Table(name, columns, color){
+				console.log('new Table');
+				this.name = (name ? name : "");
+				this.columns = (columns ? columns : []);
+				this.color = (color ? color : "#00D2FF");
+				console.log('Creating: ' + name + ' # cols(' + this.columns.length +') | ' + this.color);
+				this.x = 0;
+				this.y = 0;
+				this.shape = null;
+				
+				this.initShape = function(x,y){
+					this.x = x;
+					this.y = y;
+					var s = new Kinetic.Shape(function(){
+							return new Box(this.x, this.y, this.color)
+								}, "black"
+					);
+					s.on("mouseover", function(){
+						console.log('over ' + this.name);
+					});
+					s.on("mouseout", function(){
+						console.log('and out of ' + this.name + '!');
+					});
+					this.shape = s;
+					console.log('initShape: x/y: ' + this.x + '/' + this.y);
+					return this.shape;
+				}
+			}
+		 
+			function init(){
+				console.log('height is ' + $('#can').css('height'));
+				console.log('width is ' + $('#can').css('width'));	
+				var stage = new Kinetic.Stage("can", HEIGHT, WIDTH);
+			   
+				shapesLayer.name = "shapesLayer";
+				messageLayer.name = "messageLayer";
+				var t = new Table("Test", [], "#00D2FF");
+				t.x = 200;
+				t.y = 100;
+				shapesLayer.add(t.initShape(t.x, t.y));
+				var tb = new Table("TestB", [], "#00D2CC");
+				tb.x = 300;
+				tb.y = 100;
+				shapesLayer.add(tb.initShape(tb.x, tb.y));
+				// make the group draggable
+				shapesLayer.draggable(true);
+				stage.add(messageLayer);
+				stage.add(shapesLayer);
+			}
+		</script>
+		<style type="text/css">
+		</style>
+	</header>
+	<body onload="init()">
+		<div id="can">
+		</div>
+	</body>
+</html>
