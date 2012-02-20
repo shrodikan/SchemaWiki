@@ -24,19 +24,19 @@
 		var COLUMN_HEIGHT = 18;
 		var PADDING_RIGHT = 15;
 		var PADDING_LEFT = 15;
-        function writeMessage(messageLayer, message)
+        function writeMessage(messageLayer, messages)
 		{
             var context = messageLayer.getContext();
 			messageLayer.clear();
             context.font = "18pt Calibri";
             context.fillStyle = "black";
-            context.fillText(message, 10, 25);
-        }
+			var y = 0;
+			for(var i = 0; i < messages.length; i++)
+			{
+				context.fillText(messages[i],  y+= 10, (HEADER_HEIGHT * (i+1))+25);
+			}
 		
-		function _t_coords(x,y)
-		{
-			return [{'x':x,'y':y}, {'x':x+100, 'y':y-50}];
-		}
+        }
 		
 		function connectPoint()
 		{
@@ -72,28 +72,38 @@
 			);	
 		}
 		
-		function column(name, attributes, x, y)
+		function Column(name, attributes, coords, i)
 		{
 			this.x = 0;
 			this.y = 0;
-			this._init = function()
+			var attr = (attributes ? attributes : []);
+			var context = messageLayer.getContext();
+			var colX=0,colY=0;
+			var padding = PADDING_RIGHT * COLUMN_HEIGHT;
+			colX = PADDING_RIGHT;
+			colY = HEADER_HEIGHT + 2 + colY;
+			this.x = coords.x;
+			this.y = coords.y;
+			this.name = name;
+			this.draw = function(coords)
 			{
-				var attr = (attributes ? attributes : []);
-				var context = tableLayer.getContext();
-				var colX=0,colY=0;
-				var padding = PADDING_RIGHT * COLUMN_HEIGHT;
-				colX = PADDING_RIGHT;
-				colY = HEADER_HEIGHT + 2 + colY;
-				this.x = x+colX;
-				this.y = y+colY;
-				this.name = name;
-			}
-			this.draw = function()
-			{
-					context.fillText(name, this.x, this.y);
+				this.x = coords.x;
+				this.y = coords.y;
+				context.fillText(this.name + " [" + i + "]", this.x, this.y);
 			};
 			//left.x+colX, left.y+colY
+			return this;
 			
+		}
+		function addMessage(msg)
+		{
+			var str = "Drawing " + this.name + " at: x/y" + this.x + "/" + this.y;
+			writeMessage(messageLayer, [str]);
+		}
+		
+		function _t_coords(x,y)
+		{
+			return [{'x':x,'y':y}, {'x':x+100, 'y':y-50}];
 		}
 		
 		function DrawTable(label, cols, left, right, color)
@@ -101,25 +111,30 @@
 			var drawFunc = function(){
 				var context = this.getContext();
 				context.beginPath();
-				var bottomX=0;
-				var bottomY=HEADER_HEIGHT;//18pt font == 24px;
-				this._cols = (this._cols ? this._cols : []);
-				if(typeof(this.alpha) == 'undefined') this.alpha = 1;
-				writeMessage(messageLayer, 'Alpha is now: ' + this.alpha);		
-				/*
-					!!!!!!!!!!!!!!!!
-					!!NOTE TO SELF!! - ONCE THESE ARE CALCULATED, STORE THEM SO THEY DON'T HAVE TO BE FIGURED OUT EVERY TIME FOR THE LOVE OF GOD.
-					!!			  !! - INCLUDING KEEPING THE ACTUAL OBJECTS AROUND SO THEY AREN'T RECREATED EVERY FUCKING TIME!
-					!!!!!!!!!!!!!!!!					
-				*/
-				for(var i = 0; i < cols.length; i++)
+				if(typeof(this.bottomX) == 'undefined')
 				{
-					len_colName=PADDING_RIGHT + cols[i].toString().length + PADDING_LEFT;
-					if(len_colName > bottomX) bottomX = len_colName;
-					bottomY+=COLUMN_HEIGHT;
+					var bX=0;
+					var bY=HEADER_HEIGHT;//18pt font == 24px;
+					this._cols = (this._cols ? this._cols : []);
+					if(typeof(this.alpha) == 'undefined') this.alpha = 1;
+					//writeMessage(messageLayer, 'Alpha is now: ' + this.alpha);		
+					/*
+						!!!!!!!!!!!!!!!!
+						!!NOTE TO SELF!! - ONCE THESE ARE CALCULATED, STORE THEM SO THEY DON'T HAVE TO BE FIGURED OUT EVERY TIME FOR THE LOVE OF GOD.
+						!!			  !! - INCLUDING KEEPING THE ACTUAL OBJECTS AROUND SO THEY AREN'T RECREATED EVERY FUCKING TIME!
+						!!!!!!!!!!!!!!!!					
+					*/
+					for(var i = 0; i < cols.length; i++)
+					{//figures out what size the table should be overall.
+						len_colName=PADDING_RIGHT + cols[i].toString().length + PADDING_LEFT;
+						if(len_colName > bX) bX = len_colName;
+						bY+=COLUMN_HEIGHT;
+					}
+					this.bottomX = bX;
+					this.bottomY = bY;
 				}
 					
-				context.rect(left.x, left.y, right.x+bottomX, right.y+bottomY);
+				context.rect(left.x, left.y, right.x+this.bottomX, right.y+this.bottomY);
 				context.lineWidth = 1;
 				context.strokeStyle = "black";
 				context.fillStyle = color;
@@ -133,24 +148,28 @@
 				context.font = "18pt Calibri";
 				context.fillStyle = "black";
 				context.globalAlpha = this.alpha;
-				context.fillText(label, left.x+15, left.y+25);
+				context.fillText(label, left.x+=15, left.y+=25);
 				/*
 					DRAW COLUMNS
 				*/
 				var topY = left.y + 5;
+				messageLayer.clear();
 				if(this._cols && this._cols.length)
 				{
 					for(var i = 0; i < this._cols.length; i++)
-						this._cols[i].draw();
+					{
+						left.y+=COLUMN_HEIGHT;
+						this._cols[i].draw(left);
+					}
 				}
 				else
 				{
 					for(var i = 0; i < cols.length; i++)
 					{
+						var coords = {'x': left.x, 'y': left.y};
+						this._cols.push(new Column(cols[i], {/*attributes*/}, coords, i));
+						this._cols[i].draw(left);
 						console.log('Creating column: ' + cols[i]);
-						topY = topY + (COLUMN_HEIGHT * (i+1));
-						this._cols.push(new column(cols[i], {/*attributes*/}, left.x, topY));
-						this._cols[i].draw();
 					}
 				}
 			}
@@ -203,7 +222,8 @@
 			
 			for(var i = 0; i < 2; i++)
 			{
-				var t = new Table("Table #" + i, ['colA', 'colB', 'colC']);
+				var p = (i ? i : 'X');
+				var t = new Table("Table #" + p, ['colA - ' + p, 'colB - ' + p, 'colC - ' + p]);
 				tableLayer.add(t.shape);
 			}
             stage.add(messageLayer);
